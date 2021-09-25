@@ -8,7 +8,7 @@ This is the official code of the following paper:
 > **Visible Watermark Removal via Self-calibrated Localization and Background Refinement**[[1]](#reference)
 > <br>Jing Liang<sup>1</sup>, Li Niu<sup>1</sup>, Fengjun Guo<sup>2</sup>, Teng Long<sup>2</sup> and Liqing Zhang<sup>1</sup>
 > <br><sup>1</sup>MoE Key Lab of Artificial Intelligence, Shanghai Jiao Tong University
-> <br><sup>2</sup>INTSIG
+> <br><sup>2</sup>INTSIG<br>
 ([ACM MM 2021](https://arxiv.org/pdf/2104.09453.pdf) | [Bibtex](#citation))
 
 
