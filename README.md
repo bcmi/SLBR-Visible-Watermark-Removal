@@ -6,9 +6,9 @@ This is the official code of the following paper:
 
 > 
 > **Visible Watermark Removal via Self-calibrated Localization and Background Refinement**[[1]](#reference)
-> Jing Liang^1^, Li Niu^1^, Fengjun Guo^2^, Teng Long^2^ and Liqing Zhang^1^
-> <br>^1^MoE Key Lab of Artificial Intelligence, Shanghai Jiao Tong University
-^2^INTSIG
+> Jing Liang<sup>1<sup>, Li Niu<sup>1<sup>, Fengjun Guo<sup>2<sup>, Teng Long<sup>2<sup> and Liqing Zhang<sup>1<sup>
+> <br><sup>1<sup>MoE Key Lab of Artificial Intelligence, Shanghai Jiao Tong University
+<sup>2<sup>INTSIG
 ([ACM MM 2021](https://arxiv.org/pdf/2104.09453.pdf) | [Bibtex](#citation))
 
 
@@ -61,6 +61,9 @@ If you find this work or code is helpful in your research, please cite:
 ````
 ## Reference
 [1] Visible Watermark Removal via Self-calibrated Localization and Background Refinement. Jing Liang, Li Niu, Fengjun Guo, Teng Long and Liqing Zhang. 2021. In *Proceedings of the 29th ACM International Conference on Multimedia*. [download](https://arxiv.org/pdf/2104.09453.pdf)
+
 [2] WDNet: Watermark-Decomposition Network for Visible Watermark Removal. 2021. Liu, Yang and Zhu, Zhen and Bai, Xiang. In *Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.*
+
 [3] Danni Cheng, Xiang Li, Wei-Hong Li, Chan Lu, Fake Li, Hua Zhao, and WeiShi Zheng. 2018. Large-scale visible watermark detection and removal with deep convolutional networks. In Chinese Conference on Pattern Recognition and Computer Vision. 27–40.
+
 [4] Xiaodong Cun and Chi-Man Pun. 2020. Split then Refine: Stacked Attentionguided ResUNets for Blind Single Image Visible Watermark Removal. arXiv preprint arXiv:2012.07007 (2020).
