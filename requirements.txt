@@ -1,0 +1,14 @@
+matplotlib==2.2.2
+albumentations==0.4.5
+scipy==1.4.1
+scikit_image==0.17.2
+torch==1.6.0
+tqdm==4.46.1
+progress==1.5
+numpy==1.18.1
+torchvision==0.6.0
+opencv_python_headless==4.2.0.34
+Pillow==8.3.2
+scikit_learn==1.0
+skimage==0.0
+tensorboardX==2.4
