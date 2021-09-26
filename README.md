@@ -59,6 +59,12 @@ If you find this work or code is helpful in your research, please cite:
   year={2021}
 }
 ````
+
+## Related work
+
+We summarize the existing papers, codes, and datasets on visible watermark removal in this [repository](https://github.com/bcmi/Awesome-Visible-Watermark-Removal).
+
+
 ## Reference
 [1] Visible Watermark Removal via Self-calibrated Localization and Background Refinement. Jing Liang, Li Niu, Fengjun Guo, Teng Long and Liqing Zhang. 2021. In *Proceedings of the 29th ACM International Conference on Multimedia*. [download](https://arxiv.org/pdf/2104.09453.pdf)
 
