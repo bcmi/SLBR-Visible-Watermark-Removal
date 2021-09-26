@@ -60,7 +60,7 @@ If you find this work or code is helpful in your research, please cite:
 }
 ````
 
-## Related work
+## Related Works
 
 We summarize the existing papers, codes, and datasets on visible watermark removal in this [repository](https://github.com/bcmi/Awesome-Visible-Watermark-Removal).
 
