@@ -66,10 +66,10 @@ We summarize the existing papers, codes, and datasets on visible watermark remov
 
 
 ## Reference
-[1] Visible Watermark Removal via Self-calibrated Localization and Background Refinement. Jing Liang, Li Niu, Fengjun Guo, Teng Long and Liqing Zhang. 2021. In *Proceedings of the 29th ACM International Conference on Multimedia*. [download](https://arxiv.org/pdf/2104.09453.pdf)
+[1] Jing Liang, Li Niu, Fengjun Guo, Teng Long and Liqing Zhang. 2021. Visible Watermark Removal via Self-calibrated Localization and Background Refinement. In *Proceedings of the 29th ACM International Conference on Multimedia*. [download](https://arxiv.org/pdf/2104.09453.pdf)
 
-[2] WDNet: Watermark-Decomposition Network for Visible Watermark Removal. 2021. Liu, Yang and Zhu, Zhen and Bai, Xiang. In *Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.*
+[2] Liu, Yang and Zhu, Zhen and Bai, Xiang. 2021. WDNet: Watermark-Decomposition Network for Visible Watermark Removal. In *Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.*
 
-[3] Danni Cheng, Xiang Li, Wei-Hong Li, Chan Lu, Fake Li, Hua Zhao, and WeiShi Zheng. 2018. Large-scale visible watermark detection and removal with deep convolutional networks. In Chinese Conference on Pattern Recognition and Computer Vision. 27–40.
+[3] Danni Cheng, Xiang Li, Wei-Hong Li, Chan Lu, Fake Li, Hua Zhao, and WeiShi Zheng. 2018. Large-scale visible watermark detection and removal with deep convolutional networks. In *Chinese Conference on Pattern Recognition and Computer Vision*. 27–40.
 
 [4] Xiaodong Cun and Chi-Man Pun. 2020. Split then Refine: Stacked Attentionguided ResUNets for Blind Single Image Visible Watermark Removal. arXiv preprint arXiv:2012.07007 (2020).
