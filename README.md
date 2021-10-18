@@ -38,6 +38,10 @@ We provide a example of training and a test bash respectively:```scripts/train.s
 
 Please specify the checkpoint save path in ```--checkpoint``` and dataset path in```--dataset_dir```.
 
+
+### Pretrained Model
+We will release the pretrained model in next month!
+
 ## Visualization Results
 We also show some qualitative comparision with state-of-art methods:
 
