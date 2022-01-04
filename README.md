@@ -45,6 +45,7 @@ In this paper, we conduct all of the experiments on the latest released dataset 
   And you can further tailor ```test_custom.py``` to meet your demands. For the best performance, it is better to finetune on your dataset since our data size is set as $256\times 256$.
 
 ### Pretrained Model
+Here is the model trained on CLWD dataset:
 - [Google Drive](https://drive.google.com/file/d/1uTCzubnWZtu3HIXaK8xsXX-7x302ss13/view?usp=sharing)
 
 - [OneDrive](https://1drv.ms/u/s!AvQt5C5JE-WqkRkz9KI9o3OTfpZf?e=TDp9LV)
