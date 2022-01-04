@@ -101,7 +101,7 @@ def get_transform(opt, params=None, grayscale=False, convert=True, additional_ta
         transform_list.append(transforms.ToGray())
     if opt.preprocess == 'resize_and_crop':
         if params is None:
-            transform_list.append(RandomResizedCrop(opt.crop_size, opt.crop_size, scale=(0.8, 1.0))) # 0.5,1.0
+            transform_list.append(RandomResizedCrop(opt.crop_size, opt.crop_size, scale=(0.9, 1.0))) # 0.5,1.0
     elif opt.preprocess == 'resize':
         transform_list.append(transforms.Resize(opt.input_size, opt.input_size))
     elif opt.preprocess == 'none':

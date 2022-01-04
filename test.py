@@ -75,6 +75,7 @@ def save_output(inputs, preds, save_dir, img_fn, extra_infos=None,  verbose=Fals
 
 
 def main(args):
+    args.dataset = args.dataset.lower()
     if args.dataset == 'clwd':
         dataset_func = datasets.CLWDDataset
     elif args.dataset == 'lvw':
@@ -86,9 +87,8 @@ def main(args):
 
     Machine = models.__dict__[args.models](datasets=data_loaders, args=args)
 
-    # Machine.val()
+    
     model = Machine
-    # model.validate(0)
     model.model.eval()
     print("==> testing VM model ")
     rmses = AverageMeter()
@@ -104,6 +104,7 @@ def main(args):
     prediction_dir = os.path.join(args.checkpoint,'rst')
     if not os.path.exists(prediction_dir): os.makedirs(prediction_dir)
     
+    save_flag = False
     with torch.no_grad():
         for i, batches in enumerate(model.val_loader):
 
@@ -128,7 +129,8 @@ def main(args):
             psnrx = 10 * log10(1 / F.mse_loss(imfinal,target).item())       
             final_np = (imfinal.detach().cpu().numpy()[0].transpose(1,2,0)*255).astype(np.uint8)
             target_np = (target.detach().cpu().numpy()[0].transpose(1,2,0)*255).astype(np.uint8)
-            ssimx = ssim(final_np, target_np, multichannel=True)
+            # ssimx = ssim(final_np, target_np, multichannel=True)
+            ssimx = pytorch_ssim.ssim(imfinal, target)
             
             
             
@@ -158,14 +160,16 @@ def main(args):
             maskIoU.update(iou)
             f1 = FScore(mask_pred, mask).item()
             maskF1.update(f1, inputs.size(0))
-            save_output(
-                inputs={'I':inputs, 'bg':target,  'mask':mask}, 
-                preds={'bg':imfinal, 'mask':immask_all}, 
-                save_dir=prediction_dir, 
-                img_fn=img_path[0], 
-                extra_infos={"psnr":psnrx, "rmsew":rmsewx, "f1":f1},
-                verbose=False
-            )
+
+            if save_flag:
+                save_output(
+                    inputs={'I':inputs, 'bg':target,  'mask':mask}, 
+                    preds={'bg':imfinal, 'mask':immask_all}, 
+                    save_dir=prediction_dir, 
+                    img_fn=img_path[0], 
+                    extra_infos={"psnr":psnrx, "rmsew":rmsewx, "f1":f1},
+                    verbose=False
+                )
             if i % 100 == 0:
                 print("Batch[%d/%d]| PSNR:%.4f | SSIM:%.4f | RMSE:%.4f | RMSEw:%.4f | primeIoU:%.4f, primeF1:%.4f | maskIoU:%.4f | maskF1:%.4f | time:%.2f"
                 %(i,len(model.val_loader),psnresx.avg,ssimesx.avg, rmses.avg, rmsews.avg, prime_maskIoU.avg, prime_maskF1.avg, maskIoU.avg, maskF1.avg, processTime.avg))
@@ -177,4 +181,4 @@ def main(args):
 if __name__ == '__main__':
     parser=Options().init(argparse.ArgumentParser(description='WaterMark Removal'))
     main(parser.parse_args())
-    # org_main(parser.parse_args())
+    

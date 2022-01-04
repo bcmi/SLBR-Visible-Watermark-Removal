@@ -18,7 +18,7 @@ Here is our proposed **SLBR**(**S**elf-calibrated **L**ocalization and **B**ackg
 <img src="figs/framework.png" width = "100%" height = "100%" alt="Some examples of inharmonious region" align=center />
 </div>
 <div  align="center"> 
-<img src="figs/Submodules.png" width = "100%" height = "100%" alt="Some examples of inharmonious region" align=center />
+<img src="figs/blocks.jpg" width = "100%" height = "100%" alt="Some examples of inharmonious region" align=center />
 </div>
 
 
@@ -34,13 +34,20 @@ In this paper, we conduct all of the experiments on the latest released dataset 
 
 
 ### Train and Test
-We provide a example of training and a test bash respectively:```scripts/train.sh```, ```scripts/test.sh``` 
+- How to train your model and test?
+  We provide an example of training and a test bash respectively:```scripts/train.sh```, ```scripts/test.sh``` 
 
-Please specify the checkpoint save path in ```--checkpoint``` and dataset path in```--dataset_dir```.
+  Please specify the checkpoint save path in ```--checkpoint``` and dataset path in```--dataset_dir```.
 
+- How to test on the custom data?
+  We also provide an example of a custom data test bash:
+  ```scripts/test_custom.sh```
+  And you can further tailor ```test_custom.py``` to meet your demands. For the best performance, it is better to finetune on your dataset since our data size is set as $256\times 256$.
 
 ### Pretrained Model
-We will release the pretrained model in next month!
+- [Google Drive](https://drive.google.com/file/d/1uTCzubnWZtu3HIXaK8xsXX-7x302ss13/view?usp=sharing)
+
+- [OneDrive](https://1drv.ms/u/s!AvQt5C5JE-WqkRkz9KI9o3OTfpZf?e=TDp9LV)
 
 ## Visualization Results
 We also show some qualitative comparision with state-of-art methods:
@@ -56,10 +63,11 @@ Part of the code is based upon the previous work [SplitNet](https://github.com/v
 ## Citation
 If you find this work or code is helpful in your research, please cite:
 ````
-@article{liang2021visible,
+@inproceedings{liang2021visible,
   title={Visible Watermark Removal via Self-calibrated Localization and Background Refinement},
   author={Liang, Jing and Niu, Li and Guo, Fengjun and Long, Teng and Zhang, Liqing},
-  journal={arXiv preprint arXiv:2108.03581},
+  booktitle={Proceedings of the 29th ACM International Conference on Multimedia},
+  pages={4426--4434},
   year={2021}
 }
 ````

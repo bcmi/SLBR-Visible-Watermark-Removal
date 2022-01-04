@@ -38,8 +38,8 @@ def main(args):
     print('============================ Initization Finish && Training Start =============================================')
 
     for epoch in range(model.args.start_epoch, model.args.epochs):
+        lr = adjust_learning_rate(data_loaders, model, epoch, lr, args)
         print('\nEpoch: %d | LR: %.8f' % (epoch + 1, lr))
-        lr = adjust_learning_rate(data_loaders, model.optimizer, epoch, lr, args)
 
         model.record('lr',lr, epoch)        
         model.train(epoch)

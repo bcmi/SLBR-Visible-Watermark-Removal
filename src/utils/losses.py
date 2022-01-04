@@ -136,13 +136,7 @@ class Losses(nn.Module):
 
 
 
-def gram_matrix(feat):
-    # https://github.com/pytorch/examples/blob/master/fast_neural_style/neural_style/utils.py
-    (b, ch, h, w) = feat.size()
-    feat = feat.view(b, ch, h * w)
-    feat_t = feat.transpose(1, 2)
-    gram = torch.bmm(feat, feat_t) / (ch * h * w)
-    return gram
+
     
 class MeanShift(nn.Conv2d):
     def __init__(self, data_mean, data_std, data_range=1, norm=True):
@@ -162,9 +156,9 @@ class MeanShift(nn.Conv2d):
 
 
 
-def VGGLoss(losstype):
+def VGGLoss(losstype, style=False):
     if losstype == 'vggx':
-        return VGGLossX(mask=False)
+        return VGGLossX(mask=False, style=style)
     elif losstype == 'mvggx':
         return VGGLossX(mask=True)
     elif losstype == 'rvggx':
@@ -197,12 +191,12 @@ class VGG16FeatureExtractor(nn.Module):
         return results[1:]
 
 class VGGLossX(nn.Module):
-    def __init__(self, normalize=True, mask=False, relative=False, ssim=False):
+    def __init__(self, normalize=True, mask=False, relative=False, style=False):
         super(VGGLossX, self).__init__()
         
         self.vgg = VGG16FeatureExtractor().cuda()
         self.criterion = nn.L1Loss().cuda() if not relative else l1_relative
-        self.is_ssim = ssim
+        self.use_style = style
         self.use_mask= mask
         self.relative = relative
 
@@ -227,16 +221,30 @@ class VGGLossX(nn.Module):
         y_vgg = self.vgg(y)
         # self.visualize([x0]+x_vgg, [y0]+y_vgg)
         loss = 0
+        style_loss = 0
         for i in range(3):
-            if self.is_ssim:
-                loss += pytorch_ssim.ssim(x_vgg[i], y_vgg[i].detach())
+            # VGG Content Loss
+            if self.relative:
+                loss += self.criterion(x_vgg[i],y_vgg[i].detach(),resize_to_match(mask,x_vgg[i]))
             else:
-                if self.relative:
-                    loss += self.criterion(x_vgg[i],y_vgg[i].detach(),resize_to_match(mask,x_vgg[i]))
-                else:
-                    loss += self.criterion(resize_to_match(mask,x_vgg[i])*x_vgg[i],resize_to_match(mask,y_vgg[i])*y_vgg[i].detach())
+                loss += self.criterion(resize_to_match(mask,x_vgg[i])*x_vgg[i],resize_to_match(mask,y_vgg[i])*y_vgg[i].detach()) # 
+                # loss += self.criterion(x_vgg[i], y_vgg[i].detach())
+            # VGG Style Loss
+            if self.use_style:
+                x_gram = self.gram_matrix(x_vgg[i])
+                y_gram = self.gram_matrix(y_vgg[i].detach())
+                style_loss += F.l1_loss(x_gram, y_gram)
 
-        return loss
+        return {"content":loss, "style":style_loss}
+
+
+    def gram_matrix(self, feat):
+        # https://github.com/pytorch/examples/blob/master/fast_neural_style/neural_style/utils.py
+        (b, ch, h, w) = feat.size()
+        feat = feat.view(b, ch, h * w)
+        feat_t = feat.transpose(1, 2)
+        gram = torch.bmm(feat, feat_t) / (ch * h * w)
+        return gram
 
     def normPRED(self, d, eps=1e-2):
         ma = np.max(d)

@@ -50,8 +50,11 @@ class Options():
         parser.add_argument('--lambda_primary', type=float, default=0.01, help='the weight of primary mask prediction.')
         parser.add_argument('--lambda_style', default=0, type=float,
                             help='preception loss')
+        parser.add_argument('--lambda_content', default=0, type=float,
+                            help='preception loss')
+
         parser.add_argument('--lambda_iou', default=0, type=float,help='msiou loss')
-        parser.add_argument('--lambda_mask', default=1, type=float,help='msssim loss')
+        parser.add_argument('--lambda_mask', default=1, type=float,help='mask loss')
         
         parser.add_argument('--sltype', default='vggx', type=str)
 
@@ -61,6 +64,8 @@ class Options():
                             help='Sigma decay rate for each epoch.')
         # Miscs
         parser.add_argument('--dataset_dir', default='/PATH_TO_DATA_FOLDER/', type=str, metavar='PATH')
+        parser.add_argument('--test_dir', default='/PATH_TO_DATA_FOLDER/', type=str, metavar='PATH')
+
         parser.add_argument('--data', default='', type=str, metavar='PATH',
                             help='path to save checkpoint (default: checkpoint)')
         parser.add_argument('-c', '--checkpoint', default='checkpoint', type=str, metavar='PATH',

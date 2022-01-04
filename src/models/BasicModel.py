@@ -76,10 +76,6 @@ class BasicModel(object):
         print('==> Current Checkpoint: %s' % (self.args.checkpoint))
 
 
-        if self.args.resume != '':
-            self.resume(self.args.resume)
-
-
     def train(self,epoch):
         batch_time = AverageMeter()
         data_time = AverageMeter()
@@ -211,11 +207,23 @@ class BasicModel(object):
         if isinstance(current_checkpoint['optimizer'], torch.nn.DataParallel):
             current_checkpoint['optimizer'] = current_checkpoint['optimizer'].module
 
-        self.args.start_epoch = current_checkpoint['epoch']
+        if self.args.start_epoch == 0:
+            self.args.start_epoch = current_checkpoint['epoch']
         self.metric = current_checkpoint['best_acc']
         items = list(current_checkpoint['state_dict'].keys())
-       
-        self.model.load_state_dict(current_checkpoint['state_dict'], strict=False)
+
+        ## restore the learning rate
+        lr = self.args.lr
+        for epoch in self.args.schedule:
+            if epoch <= self.args.start_epoch:
+                lr *= self.args.gamma
+        optimizers = [getattr(self.model, attr) for attr in dir(self.model) if  attr.startswith("optimizer") and getattr(self.model, attr) is not None]
+        for optimizer in optimizers:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
+        
+        # ---------------- Load Model Weights --------------------------------------
+        self.model.load_state_dict(current_checkpoint['state_dict'], strict=True)
         print("=> loaded checkpoint '{}' (epoch {})"
                 .format(resume_path, current_checkpoint['epoch']))
         

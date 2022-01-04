@@ -11,7 +11,7 @@ import random
 
 class CLWDDataset(torch.utils.data.Dataset):
     def __init__(self, is_train, args):
-        self.args = args
+        
         args.is_train = is_train == 'train'
         if args.is_train == True:
             self.root = args.dataset_dir + '/train/'
@@ -20,7 +20,10 @@ class CLWDDataset(torch.utils.data.Dataset):
         elif args.is_train == False:
             self.root = args.dataset_dir + '/test/'
             self.keep_background_prob = -1
+            args.preprocess = 'resize'
+            args.no_flip = True
 
+        self.args = args
         # Augmentataion?
         self.transform_norm=transforms.Compose([
             transforms.ToTensor()])
@@ -46,11 +49,6 @@ class CLWDDataset(torch.utils.data.Dataset):
             self.ids.append(file.strip('.jpg'))
         cv2.setNumThreads(0)
         cv2.ocl.setUseOpenCL(False)
-        # self.corrupt_list = [
-        #     '25426',
-        #     '40793',
-        #     '1391'
-        #     ]
         
         
        

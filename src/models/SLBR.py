@@ -20,20 +20,21 @@ import torchvision
 import pytorch_iou
 import pytorch_ssim
 
-
 class Losses(nn.Module):
     def __init__(self, argx, device, norm_func, denorm_func):
         super(Losses, self).__init__()
         self.args = argx
-        self.reconstruct_loss, self.mask_loss = l1_relative, nn.BCELoss()
+        self.masked_l1_loss, self.mask_loss = l1_relative, nn.BCELoss()
         self.l1_loss = nn.L1Loss()
 
-        if self.args.lambda_style > 0:
-            self.vgg_loss = VGGLoss(self.args.sltype).to(device)
+        if self.args.lambda_content > 0:
+            self.vgg_loss = VGGLoss(self.args.sltype, style=self.args.lambda_style>0).to(device)
         
         if self.args.lambda_iou > 0:
             self.iou_loss = pytorch_iou.IOU(size_average=True)
+
         self.lambda_primary = self.args.lambda_primary
+        self.gamma = 0.5
         self.norm = norm_func
         self.denorm = denorm_func
 
@@ -42,18 +43,18 @@ class Losses(nn.Module):
         pred_ims = pred_ims if is_dic(pred_ims) else [pred_ims]
         
         # reconstruction loss
-        pixel_loss += self.reconstruct_loss(pred_ims[-1], target, mask) # coarse stage
-        pixel_loss += self.l1_loss(pred_ims[-1]*pred_ms[0], target * mask)
+        pixel_loss += self.masked_l1_loss(pred_ims[-1], target, mask) # coarse stage
         if len(pred_ims) > 1:
-            refine_loss = self.reconstruct_loss(pred_ims[0], target, mask) # refinement stage
-            refine_loss += self.l1_loss(pred_ims[0]*pred_ms[0], target * mask)
+            refine_loss = self.masked_l1_loss(pred_ims[0], target, mask) # refinement stage
         
         recov_imgs = [ self.denorm(pred_im*mask + (1-mask)*self.norm(target)) for pred_im in pred_ims ]        
-        pixel_loss += sum([self.l1_loss(im,target) for im in recov_imgs]) 
+        pixel_loss += sum([self.l1_loss(im,target) for im in recov_imgs]) * 1.5
         
 
-        if self.args.lambda_style > 0:
-            vgg_loss = sum([self.vgg_loss(im,target,mask) for im in recov_imgs])
+        if self.args.lambda_content > 0:
+            vgg_loss = [self.vgg_loss(im,target,mask) for im in recov_imgs]
+            vgg_loss = sum([vgg['content'] for vgg in vgg_loss]) * self.args.lambda_content + \
+                       sum([vgg['style'] for vgg in vgg_loss]) * self.args.lambda_style
 
         # mask loss
         pred_ms = [F.interpolate(ms, size=mask.shape[2:], mode='bilinear') for ms in pred_ms]
@@ -63,16 +64,14 @@ class Losses(nn.Module):
         final_mask_loss = 0
         final_mask_loss += self.mask_loss(pred_ms[0], mask)
         
-        primary_mask = pred_ms[1::2]
-        self_calibrated_mask = pred_ms[2::2]
+        primary_mask = pred_ms[1::2][::-1]
+        self_calibrated_mask = pred_ms[2::2][::-1]
         # primary prediction
-        primary_loss =  sum([self.mask_loss(pred_m, mask) for pred_m in primary_mask])
-        if self.args.lambda_iou > 0:
-            primary_loss += sum([self.iou_loss(pred_m, mask) for pred_m in primary_mask]) * self.args.lambda_iou
+        primary_loss =  sum([self.mask_loss(pred_m, mask) * (self.gamma**i) for i,pred_m in enumerate(primary_mask)])
         # self calibrated Branch
-        self_calibrated_loss =  sum([self.mask_loss(pred_m, mask) for pred_m in self_calibrated_mask])
+        self_calibrated_loss =  sum([self.mask_loss(pred_m, mask) * (self.gamma**i) for i,pred_m in enumerate(self_calibrated_mask)])
         if self.args.lambda_iou > 0:
-            self_calibrated_loss += sum([self.iou_loss(pred_m, mask) for pred_m in self_calibrated_mask]) * self.args.lambda_iou
+            self_calibrated_loss += sum([self.iou_loss(pred_m, mask) * (self.gamma**i) for i,pred_m in enumerate(self_calibrated_mask)]) * self.args.lambda_iou
 
         mask_loss = final_mask_loss + self_calibrated_loss + self.lambda_primary * primary_loss
         return pixel_loss, refine_loss, vgg_loss, mask_loss
@@ -87,7 +86,8 @@ class SLBR(BasicModel):
         if isinstance(self.model, nn.DataParallel):
             self.model = self.model.module
         self.model.set_optimizers()
-        self.optimizer = None
+        if self.args.resume != '':
+            self.resume(self.args.resume)
        
     def train(self,epoch):
 
@@ -117,17 +117,17 @@ class SLBR(BasicModel):
             
             outputs = self.model(self.norm(inputs))
             self.model.zero_grad_all()
-            pixel_loss, refine_loss, style_loss, mask_loss = self.loss(
+            coarse_loss, refine_loss, style_loss, mask_loss = self.loss(
                 inputs,outputs[0],self.norm(target),outputs[1],mask)
             
-            total_loss = self.args.lambda_l1*(pixel_loss+refine_loss) + self.args.lambda_mask * (mask_loss)  + self.args.lambda_style * style_loss
+            total_loss = self.args.lambda_l1*(coarse_loss+refine_loss) + self.args.lambda_mask * (mask_loss)  + style_loss
             
             # compute gradient and do SGD step
             total_loss.backward()
             self.model.step_all()
 
             # measure accuracy and record loss
-            losses_meter.update(pixel_loss.item(), inputs.size(0))
+            losses_meter.update(coarse_loss.item(), inputs.size(0))
             loss_mask_meter.update(mask_loss.item(), inputs.size(0))
             if isinstance(refine_loss,int):
                 loss_refine_meter.update(refine_loss, inputs.size(0))
@@ -136,7 +136,7 @@ class SLBR(BasicModel):
             
             f1 = FScore(outputs[1][0], mask).item()
             f1_meter.update(f1, inputs.size(0))
-            if self.args.lambda_style > 0  and not isinstance(style_loss,int):
+            if self.args.lambda_content > 0  and not isinstance(style_loss,int):
                 loss_vgg_meter.update(style_loss.item(), inputs.size(0))
 
             # measure elapsed timec

@@ -63,7 +63,7 @@ def conv3x3(in_channels, out_channels, stride=1,
         dilation=dilation)
 
 
-def up_conv2x2(in_channels, out_channels, transpose=True):
+def up_conv3x3(in_channels, out_channels, transpose=True):
     if transpose:
         return nn.ConvTranspose2d(
             in_channels,
@@ -91,7 +91,7 @@ class UpConv(nn.Module):
         self.use_mask = use_mask
         
         self.out_fuse = out_fuse
-        self.up_conv = up_conv2x2(in_channels, out_channels, transpose=False)
+        self.up_conv = up_conv3x3(in_channels, out_channels, transpose=False)
         if isinstance(norm, str):
             if norm == 'bn':
                 norm = nn.BatchNorm2d
@@ -209,8 +209,7 @@ class MBEBlock(nn.Module):
         self.residual = residual
         self.mode = mode # vanilla, res_mask
 
-        self.conv2 = []
-        self.up_conv = up_conv2x2(in_channels, out_channels, transpose=False)
+        self.up_conv = up_conv3x3(in_channels, out_channels, transpose=False)
         if isinstance(norm, str):
             if norm == 'bn':
                 norm = nn.BatchNorm2d
@@ -221,45 +220,52 @@ class MBEBlock(nn.Module):
         self.norm0 = norm(out_channels)
 
         if self.concat:
-            if self.mode == 'res_mask':
-                k= 2*out_channels + 1
-            else:
-                k = 2*out_channels
-            self.conv1 = conv3x3(k, out_channels)
-            self.norm1 = norm(out_channels)
+            conv1_in = 2*out_channels
         else:
-            self.conv1 = conv3x3(out_channels, out_channels)
-            self.norm1 = norm(out_channels)
+            conv1_in = out_channels
+        self.conv1 = conv3x3(conv1_in, out_channels)
+        self.norm1 = norm(out_channels)
 
+        # residual structure
+        self.conv2 = []
+        self.conv3 = []
         for i in range(blocks):
-            self.conv2.append(conv3x3(out_channels, out_channels))
+            self.conv2.append(
+                nn.Sequential(*[
+                    nn.Conv2d(out_channels // 2 + 1, out_channels // 4, 5, 1, 2),
+                    nn.ReLU(True),
+                    nn.Conv2d(out_channels // 4, 1, 5, 1, 2),
+                    nn.Sigmoid()
+                ])
+            )
+            self.conv3.append(conv3x3(out_channels // 2, out_channels))
+        
         self.bn = []
         for _ in range(blocks):
             self.bn.append(norm(out_channels))
         self.bn = nn.ModuleList(self.bn)
         self.conv2 = nn.ModuleList(self.conv2)
+        self.conv3 = nn.ModuleList(self.conv3)
         self.act = act
 
     def forward(self, from_up, from_down, mask=None):
         from_up = self.act(self.norm0(self.up_conv(from_up)))
         if self.concat:
-            if 'res' in self.mode:
-                x1 = torch.cat((from_up, from_down, mask), 1)
-            else:
-                x1 = torch.cat((from_up, from_down), 1)
+            x1 = torch.cat((from_up, from_down), 1)
         else:
             if from_down is not None:
                 x1 = from_up + from_down
             else:
                 x1 = from_up
-        
         x1 = self.act(self.norm1(self.conv1(x1)))
-        if 'res' in self.mode:
-            x1 = x1 + from_up
-        for idx, conv in enumerate(self.conv2):
-            x2 = conv(x1)
-            x2 = self.bn[idx](x2)
 
+        # residual structure
+        _,C,H,W = x1.shape
+        for idx, convs in enumerate(zip(self.conv2, self.conv3)):
+            mask = convs[0](torch.cat([x1[:,:C//2], mask], dim=1))
+            x2_actv = x1[:,C//2:] * mask
+            x2 = convs[1](x1[:,C//2:] + x2_actv)
+            x2 = self.bn[idx](x2)
             if self.residual:
                 x2 = x2 + x1
             x2 = self.act(x2)
@@ -289,49 +295,78 @@ class SMRBlock(nn.Module):
         # upconv features
         mask_x, fuse_x = self.upconv(input, encoder_outs)
         primary_mask = self.primary_mask(mask_x)
-        self_calibrated_mask = self.self_calibrated(fuse_x, mask_x, primary_mask)
+        mask_x, self_calibrated_mask = self.self_calibrated(mask_x, mask_x, primary_mask)
         return {"feats":[mask_x], "attn_maps":[primary_mask, self_calibrated_mask]}
 
 class SelfAttentionSimple(nn.Module):
     def __init__(self, mode, in_channel, k_center=1, sim_metric='fc', project_mode='linear'):
         super(SelfAttentionSimple, self).__init__()
-        self.k_center = k_center
+        self.k_center = k_center # 1 for foreground, 2 for background & foreground
         self.reduction = 1
+        self.mode = mode
         self.project_mode = project_mode
         self.q_conv = nn.Conv2d(in_channel, in_channel, 1,1,0)
+        self.k_conv = nn.Conv2d(in_channel, in_channel*k_center, 1,1,0)
         self.v_conv = nn.Conv2d(in_channel, in_channel*k_center, 1,1,0)
-        self.k_conv = nn.Conv2d(in_channel, in_channel//self.reduction*k_center, 1,1,0)
    
         self.min_area = 100
         self.threshold = 0.5
-        self.sim_func = nn.Conv2d(in_channel + in_channel//self.reduction, 1, 1,1,0)
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(in_channel, in_channel//8, 3,1,1),
+            nn.ReLU(True),
+            nn.Conv2d(in_channel//8, 1, 3,1,1)
+        ) 
+        
+        
+        self.sim_func = nn.Conv2d(in_channel + in_channel, 1, 1,1,0)
         self.k_weight = nn.Parameter(torch.full((1,k_center,1,1), fill_value=1,dtype=torch.float32), requires_grad=True)
         
-    def compute_attention(self, query, key, mask):  # in: [B, C:128, 64, 64]
+    def compute_attention(self, query, key, mask, eps=1):  # in: [B, C:128, 64, 64]
         b,c,h,w = query.shape
+        query_org = query
         query = self.q_conv(query)
-        key = self.k_conv(key)
-        keys = list(key.split(c//self.reduction,dim=1))
+        key_in = key
+        key = self.k_conv(key_in)
+        keys = list(key.split(c,dim=1))
         
         importance_map = torch.where(mask >= self.threshold, torch.ones_like(mask), torch.zeros_like(mask)).to(mask.device)
         s_area = torch.clamp_min(torch.sum(importance_map, dim=[2,3]), self.min_area)[:,0:1]
-        keys = [torch.sum(k*mask, dim=[2,3]) / s_area for k in keys] # b,c * k
+        if self.k_center != 2:
+            keys = [torch.sum(k*importance_map, dim=[2,3]) / s_area for k in keys] # b,c * k
+        else:
+            keys = [
+                torch.sum(keys[0]*importance_map, dim=[2,3]) / s_area,
+                torch.sum(keys[1]*(1-importance_map), dim=[2,3]) / (keys[1].shape[2]*keys[1].shape[3] - s_area + eps)
+            ]
 
         f_query = query # b, c, h, w
-        f_key = [k.reshape(b,c//self.reduction,1,1).repeat(1, 1, f_query.size(2),f_query.size(3)) for k in keys]
+        f_key = [k.reshape(b,c,1,1).repeat(1, 1, f_query.size(2),f_query.size(3)) for k in keys]
         attention_scores = []
         for k in f_key:
             combine_qk = torch.cat([f_query, k],dim=1).tanh() # tanh
             sk = self.sim_func(combine_qk)
             attention_scores.append(sk)
-        s = torch.cat(attention_scores, dim=1) # b,k,h,w
+        s = ascore = torch.cat(attention_scores, dim=1) # b,k,h,w
+        
+        s = s.permute(0,2,3,1) # b,h,w,k
+        v = self.v_conv(key_in)
+        if self.k_center == 2:
+            v_fg = torch.sum(v[:,:c]*importance_map, dim=[2,3]) / s_area
+            v_bg = torch.sum(v[:,c:]*(1-importance_map), dim=[2,3]) / (v.shape[2]*v.shape[3] - s_area + eps)
+            v = torch.cat([v_fg, v_bg],dim=1)
+        else:
+            v = torch.sum(v*importance_map, dim=[2,3]) / s_area # b, c*k
+        v = v.reshape(b, self.k_center, c) # b, k, c
+        attn = torch.bmm(s.reshape(b,h*w,self.k_center), v).reshape(b,h,w,c).permute(0,3,1,2)
+        s = self.out_conv(attn + query)
         return s
+
 
     def forward(self, xin, xout, xmask):
         b_num,c,h,w = xin.shape
         attention_score = self.compute_attention(xin, xout, xmask) # b,h*w,k
         attention_score = attention_score.reshape(b_num,1,h,w)
-        return attention_score.sigmoid()
+        return xout, attention_score.sigmoid()
         
         
 
@@ -341,9 +376,9 @@ class SelfAttentionSimple(nn.Module):
 
 ## Refinement Stage
 class ResDownNew(nn.Module):
-    def __init__(self, in_size, out_size, pooling=True, use_att=False):
+    def __init__(self, in_size, out_size, pooling=True, use_att=False, dilation=False):
         super(ResDownNew, self).__init__()
-        self.model = DownConv(in_size, out_size, 3, pooling=pooling, norm=nn.InstanceNorm2d, act=F.leaky_relu)
+        self.model = DownConv(in_size, out_size, 3, pooling=pooling, norm=nn.InstanceNorm2d, act=F.leaky_relu, dilations=[1,2,5] if dilation else [])
 
     def forward(self, x):
         return self.model(x)
@@ -357,36 +392,45 @@ class ResUpNew(nn.Module):
         return self.model(x,skip_input,mask)
 
 
+        
+
 class CFFBlock(nn.Module):
     def __init__(self, down=ResDownNew, up=ResUpNew, ngf = 32):
         super(CFFBlock, self).__init__()
         self.down1 = down(ngf, ngf)
         self.down2 = down(ngf, ngf*2)
-        self.down3 = down(ngf*2, ngf*4, pooling=False)
+        self.down3 = down(ngf*2, ngf*4, pooling=False, dilation=True)
 
-        self.conv22 = nn.Conv2d(ngf*2, ngf, 1,1,0)
-        self.conv33 = nn.Conv2d(ngf*4,ngf*2, 1,1,0)
-
-        self.down3_2 = nn.Sequential(*[
-            nn.Conv2d(ngf*4, ngf*1, 3,1,1),
-            nn.InstanceNorm2d(ngf),
+        self.conv22 = nn.Sequential(*[
+            nn.Conv2d(ngf*2, ngf, 3,1,1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(ngf, ngf,1,1,0)
+            nn.Conv2d(ngf, ngf, 3,1,1),
+            nn.LeakyReLU(0.2)
         ])
 
-        self.down3_1 = nn.Sequential(*[
-            nn.Conv2d(ngf*4, ngf*1, 3,1,1),
-            nn.InstanceNorm2d(ngf),
+        self.conv33 = nn.Sequential(*[
+            nn.Conv2d(ngf*4,ngf*2, 3, 1, 1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(ngf, ngf,1,1,0)
+            nn.Conv2d(ngf*2, ngf*2, 3,1,1),
+            nn.LeakyReLU(0.2)
+        ])
+
+        self.up32 = nn.Sequential(*[
+            nn.Conv2d(ngf*4, ngf*1, 3,1,1),
+            nn.LeakyReLU(0.2),
+        ])
+
+        self.up31 = nn.Sequential(*[
+            nn.Conv2d(ngf*4, ngf*1, 3,1,1),
+            nn.LeakyReLU(0.2),
         ])
 
     def forward(self, inputs):
         x1,x2,x3 = inputs
         x32 = F.interpolate(x3, size=x2.shape[2:][::-1], mode='bilinear')
-        x32 = self.down3_2(x32)
+        x32 = self.up32(x32)
         x31 = F.interpolate(x3, size=x1.shape[2:][::-1], mode='bilinear')
-        x31 = self.down3_1(x31)
+        x31 = self.up31(x31)
 
         # cross-connection
         x,d1 = self.down1(x1 + x31)

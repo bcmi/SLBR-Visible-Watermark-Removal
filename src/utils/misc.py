@@ -64,18 +64,24 @@ def save_pred(preds, checkpoint='checkpoint', filename='preds_valid.mat'):
     scipy.io.savemat(filepath, mdict={'preds' : preds})
 
 
-def adjust_learning_rate(datasets,optimizer, epoch, lr,args):
+def adjust_learning_rate(datasets, model, epoch, lr,args):
     """Sets the learning rate to the initial LR decayed by schedule"""
     if epoch in args.schedule:
         lr *= args.gamma
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-    
+        optimizers = [getattr(model.model, attr) for attr in dir(model.model) if  attr.startswith("optimizer") and getattr(model.model, attr) is not None]
+        for optimizer in optimizers:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
+    else: # access the current learning rate
+        optimizers = [getattr(model.model, attr) for attr in dir(model.model) if  attr.startswith("optimizer") and getattr(model.model, attr) is not None]
+        for optimizer in optimizers:
+            for param_group in optimizer.param_groups:
+                lr = param_group['lr']
     # decay sigma
-    for dset in datasets:
-        if args.sigma_decay > 0:
-            dset.dataset.sigma *=  args.sigma_decay
-            dset.dataset.sigma *=  args.sigma_decay
+    # for dset in datasets:
+    #     if args.sigma_decay > 0:
+    #         dset.dataset.sigma *=  args.sigma_decay
+    #         dset.dataset.sigma *=  args.sigma_decay
 
     return lr
 
