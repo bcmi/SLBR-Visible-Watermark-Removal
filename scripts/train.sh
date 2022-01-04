@@ -33,7 +33,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train.py \
  --models slbr \
   --input-size ${INPUT_SIZE} \
  --crop_size ${INPUT_SIZE} \
- --train-batch 2 \
+ --train-batch 8 \
  --test-batch 1 \
  --preprocess resize \
  --name ${NAME} \
