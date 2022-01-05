@@ -34,15 +34,15 @@ In this paper, we conduct all of the experiments on the latest released dataset 
 
 
 ### Train and Test
-- How to train your model and test?
+- How to train and test my model?
   We provide an example of training and a test bash respectively:```scripts/train.sh```, ```scripts/test.sh``` 
 
   Please specify the checkpoint save path in ```--checkpoint``` and dataset path in```--dataset_dir```.
 
-- How to test on the custom data?
+- How to test on my data?
   We also provide an example of a custom data test bash:
   ```scripts/test_custom.sh```
-  And you can further tailor ```test_custom.py``` to meet your demands. For the best performance, it is better to finetune on your dataset since our data size is set as $256\times 256$.
+  And you can further tailor ```test_custom.py``` to meet your demands. For the best performance, it is better to finetune on your dataset since our training data size is set as $256\times 256$.
 
 ### Pretrained Model
 Here is the model trained on CLWD dataset:
