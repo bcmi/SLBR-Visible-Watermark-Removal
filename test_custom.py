@@ -6,8 +6,8 @@ import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
-import scripts.datasets as datasets
-import scripts.machines as machines
+import datasets as datasets
+import src.models as models
 from options import Options
 import torch.nn.functional as F
 
@@ -78,7 +78,7 @@ def test_dataloder(img_path, crop_size):
 
 def main(args):
 
-    Machine = machines.__dict__[args.machine](datasets=(None, None), args=args)
+    Machine = models.__dict__[args.models](datasets=(None, None), args=args)
 
     model = Machine
     model.model.eval()

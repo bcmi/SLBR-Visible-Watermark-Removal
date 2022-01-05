@@ -9,15 +9,12 @@ import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
-from src.utils.misc import save_checkpoint, adjust_learning_rate
-
 import datasets as datasets
 import src.models as models
 from options import Options
 import torch.nn.functional as F
 import pytorch_ssim
 from evaluation import compute_IoU, FScore, AverageMeter, compute_RMSE, normPRED
-from numpy.lib.stride_tricks import as_strided as ast
 from skimage.measure import compare_ssim as ssim
 import time
 

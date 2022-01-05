@@ -18,7 +18,7 @@ class CLWDDataset(torch.utils.data.Dataset):
             # self.keep_background_prob = 0.01
             self.keep_background_prob = -1
         elif args.is_train == False:
-            self.root = args.dataset_dir + '/test/'
+            self.root = args.dataset_dir + '/val/' #'/test/'
             self.keep_background_prob = -1
             args.preprocess = 'resize'
             args.no_flip = True
